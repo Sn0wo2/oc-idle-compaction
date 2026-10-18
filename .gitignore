@@ -111,3 +111,32 @@ dist
 
 # TernJS port file
 .tern-port
+# GitHub template additions
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Dependency directories
+node_modules/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# dotenv environment variables
+.env
+.env.test
+
+# Build output
+dist/
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+
+# Package archives
+*.tgz
