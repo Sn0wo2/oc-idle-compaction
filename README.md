@@ -1,12 +1,12 @@
 # oc-idle-compaction
 
-OpenCode plugin that compacts large sessions after they sit idle, just before their prompt cache expires. Inspired by Claude Code's idle compaction.
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Sn0wo2/oc-idle-compaction)
 
-Resuming a long session after its cache expires bills the whole context as uncached input. Compacting while the cache is still warm reads it at the cached rate and leaves a small summary to resume from.
-
-Requires OpenCode V2 2.0.29 or later.
+> OpenCode2 plugin that compacts large idle sessions before their prompt cache expires. Inspired by Claude Code's idle compaction.
 
 ## Install
+
+Requires OpenCode `v2.0.29` or later.
 
 Add the package to your OpenCode2 `opencode.json` / `opencode.jsonc`:
 
