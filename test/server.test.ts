@@ -1,4 +1,7 @@
-import { expect, test } from "bun:test";
+import { afterAll, expect, test } from "bun:test";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { Plugin, Location } from "@opencode/plugin";
 import idleCompaction from "../src/index.ts";
 import { loadConfig } from "../src/config/load.ts";
@@ -7,10 +10,29 @@ type Event = { type: string; data: Record<string, unknown> };
 
 const IDLE_MINUTES = 0.0005; // 30ms
 const IDLE_WAIT = 60;
+const previousConfigDir = process.env.OPENCODE_CONFIG_DIR;
+const isolatedConfigDir = await mkdtemp(join(tmpdir(), "oc-idle-compaction-"));
+process.env.OPENCODE_CONFIG_DIR = isolatedConfigDir;
+
+afterAll(async () => {
+  if (previousConfigDir === undefined) delete process.env.OPENCODE_CONFIG_DIR;
+  else process.env.OPENCODE_CONFIG_DIR = previousConfigDir;
+  await rm(isolatedConfigDir, { recursive: true, force: true });
+});
+
+async function optionAConfig(config: Record<string, unknown>) {
+  const directory = await mkdtemp(join(isolatedConfigDir, "project-"));
+  await writeFile(join(directory, "opencode.json"), JSON.stringify(config));
+  return {
+    location: { directory, project: { directory } } as Location.Info,
+    cleanup: () => rm(directory, { recursive: true, force: true }),
+  };
+}
 
 async function setup(
   input: {
     options?: Record<string, unknown>;
+    config?: Record<string, unknown>;
     parents?: Record<string, string>;
     models?: Record<
       string,
@@ -19,13 +41,14 @@ async function setup(
     location?: Location.Info;
   } = {},
 ) {
+  const config = input.config ? await optionAConfig(input.config) : undefined;
   const queue: Event[] = [];
   let wake: (() => void) | undefined;
   let signal: AbortSignal | undefined;
   const compactions: string[] = [];
   const cleanup = await idleCompaction.setup({
     options: { idleMinutes: IDLE_MINUTES, ...input.options },
-    location: input.location,
+    location: config?.location ?? input.location,
     event: {
       subscribe: (options: { signal: AbortSignal }) => {
         signal = options.signal;
@@ -77,6 +100,7 @@ async function setup(
     cleanup: async () => {
       if (cleanup) await cleanup();
       wake?.();
+      await config?.cleanup();
     },
   };
 }
@@ -203,9 +227,15 @@ test("supports per-model custom idleMinutes", async () => {
   const harness = await setup({
     options: {
       idleMinutes: 0.001, // 60ms default
-      models: {
-        "fast-model": {
-          idleMinutes: 0.0003, // 18ms
+    },
+    config: {
+      providers: {
+        "test-prov": {
+          models: {
+            "fast-model": {
+              idleCompaction: { idleMinutes: 0.0003 },
+            },
+          },
         },
       },
     },
@@ -234,9 +264,15 @@ test("supports per-model custom minTokens", async () => {
   const harness = await setup({
     options: {
       minTokens: 200_000,
-      models: {
-        "anthropic/claude-3-7-sonnet": {
-          minTokens: 50_000,
+    },
+    config: {
+      providers: {
+        anthropic: {
+          models: {
+            "claude-3-7-sonnet": {
+              idleCompaction: { minTokens: 50_000 },
+            },
+          },
         },
       },
     },
@@ -261,10 +297,16 @@ test("supports per-model custom minTokens", async () => {
 
 test("supports disabling idle compaction for specific models", async () => {
   const harness = await setup({
-    options: {
-      models: {
-        "disabled-model": false,
-        "explicit-disabled": { enabled: false },
+    config: {
+      providers: {
+        prov: {
+          models: {
+            "disabled-model": { idleCompaction: false },
+            "explicit-disabled": {
+              idleCompaction: { enabled: false },
+            },
+          },
+        },
       },
     },
     models: {
@@ -295,10 +337,10 @@ test("supports disabling idle compaction for specific models", async () => {
 
 test("supports provider-level defaults", async () => {
   const harness = await setup({
-    options: {
+    config: {
       providers: {
         custom_provider: {
-          minTokens: 10_000,
+          idleCompaction: { minTokens: 10_000 },
         },
       },
     },
@@ -316,21 +358,26 @@ test("supports provider-level defaults", async () => {
 });
 
 test("loadConfig resolves model, provider and global options correctly", async () => {
-  const store = await loadConfig(undefined, {
-    idleMinutes: 50,
-    minTokens: 150_000,
+  const config = await optionAConfig({
     providers: {
       openai: {
-        idleMinutes: 40,
+        idleCompaction: { idleMinutes: 40 },
+        models: {
+          "gpt-4o": {
+            idleCompaction: { idleMinutes: 20, minTokens: 80_000 },
+          },
+        },
+      },
+      anthropic: {
+        models: {
+          "claude-opus": { idleCompaction: false },
+        },
       },
     },
-    models: {
-      "openai/gpt-4o": {
-        idleMinutes: 20,
-        minTokens: 80_000,
-      },
-      "claude-opus": false,
-    },
+  });
+  const store = await loadConfig(config.location, {
+    idleMinutes: 50,
+    minTokens: 150_000,
   });
 
   // Global fallback
@@ -369,4 +416,5 @@ test("loadConfig resolves model, provider and global options correctly", async (
     id: "claude-opus",
   });
   expect(disabledResolved.enabled).toBe(false);
+  await config.cleanup();
 });

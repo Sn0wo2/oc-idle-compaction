@@ -1,6 +1,6 @@
 {
   "name": "oc-idle-compaction",
-  "description": "OpenCode plugin that compacts large idle sessions before their prompt cache expires.",
+  "description": "OpenCode2 plugin that compacts large idle sessions before their prompt cache expires.",
   "type": "module",
   "files": [
     "src"
@@ -23,8 +23,11 @@
     "coding-agent",
     "ai"
   ],
-  "author": "vimtor",
-  "license": "MIT",
+  "author": "Me0wo",
+  "contributors": [
+    "vimtor"
+  ],
+  "license": "Apache-2.0",
   "dependencies": {
     "@opencode/plugin": "^2.0.32",
     "es-toolkit": "^1.52.0",

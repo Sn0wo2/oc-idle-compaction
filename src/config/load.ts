@@ -23,11 +23,7 @@ export type ModelRef = {
   variant?: string;
 };
 
-export function parseNumber(
-  name: string,
-  value: unknown,
-  fallback: number,
-): number {
+export function parseNumber(name: string, value: unknown, fallback: number) {
   if (value === undefined) return fallback;
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
     throw new Error(
@@ -97,12 +93,10 @@ export class ConfigStore {
     this.globalConfig = globalConfig;
   }
 
-  resolve(model?: ModelRef): ResolvedIdleCompactionConfig {
+  resolve(model?: ModelRef) {
     if (!model) return this.globalConfig;
 
-    const providerID = model.providerID;
-    const modelID = model.id;
-    const variant = model.variant;
+    const { providerID, id: modelID, variant } = model;
 
     let modelOpt: IdleCompactionOptions | undefined;
 
@@ -125,21 +119,17 @@ export class ConfigStore {
       ? this.providerConfigs.get(providerID)
       : undefined;
 
-    const enabled =
-      modelOpt?.enabled ?? providerOpt?.enabled ?? this.globalConfig.enabled;
-    const idleMinutes =
-      modelOpt?.idleMinutes ??
-      providerOpt?.idleMinutes ??
-      this.globalConfig.idleMinutes;
-    const minTokens =
-      modelOpt?.minTokens ??
-      providerOpt?.minTokens ??
-      this.globalConfig.minTokens;
-
     return {
-      enabled,
-      idleMinutes,
-      minTokens,
+      enabled:
+        modelOpt?.enabled ?? providerOpt?.enabled ?? this.globalConfig.enabled,
+      idleMinutes:
+        modelOpt?.idleMinutes ??
+        providerOpt?.idleMinutes ??
+        this.globalConfig.idleMinutes,
+      minTokens:
+        modelOpt?.minTokens ??
+        providerOpt?.minTokens ??
+        this.globalConfig.minTokens,
     };
   }
 }
@@ -147,29 +137,19 @@ export class ConfigStore {
 export async function loadConfig(
   location?: Location.Info,
   options?: PluginOptions,
-): Promise<ConfigStore> {
-  const globalIdleMinutes = parseNumber(
-    "idleMinutes",
-    options?.idleMinutes,
-    DEFAULT_IDLE_MINUTES,
-  );
-  const globalMinTokens = parseNumber(
-    "minTokens",
-    options?.minTokens,
-    DEFAULT_MIN_TOKENS,
-  );
-  const globalEnabled =
-    typeof options?.enabled === "boolean" ? options.enabled : true;
-
+) {
   const store = new ConfigStore({
-    idleMinutes: globalIdleMinutes,
-    minTokens: globalMinTokens,
-    enabled: globalEnabled,
+    idleMinutes: parseNumber(
+      "idleMinutes",
+      options?.idleMinutes,
+      DEFAULT_IDLE_MINUTES,
+    ),
+    minTokens: parseNumber("minTokens", options?.minTokens, DEFAULT_MIN_TOKENS),
+    enabled: typeof options?.enabled === "boolean" ? options.enabled : true,
   });
 
-  const paths = configPaths(location);
-  const documents = await Promise.all(
-    paths.map(async (path) => {
+  for (const document of await Promise.all(
+    configPaths(location).map(async (path) => {
       const text = await Bun.file(path)
         .text()
         .catch(() => "");
@@ -184,9 +164,7 @@ export async function loadConfig(
         return undefined;
       }
     }),
-  );
-
-  for (const document of documents) {
+  )) {
     if (!document || !isPlainObject(document.providers)) continue;
     for (const [providerID, rawProvider] of Object.entries(
       document.providers,
@@ -215,28 +193,6 @@ export async function loadConfig(
         if (modelID) {
           store.modelConfigs.set(`${providerID}/${modelID}`, modelOpt);
           store.modelConfigs.set(modelID, modelOpt);
-        }
-      }
-    }
-  }
-
-  // Merge plugin options (e.g. options.models or options.providers)
-  if (options && isPlainObject(options)) {
-    if (isPlainObject(options.providers)) {
-      for (const [providerID, rawProvider] of Object.entries(
-        options.providers,
-      )) {
-        const opt = parseModelOptions(rawProvider);
-        if (opt) {
-          store.providerConfigs.set(providerID, opt);
-        }
-      }
-    }
-    if (isPlainObject(options.models)) {
-      for (const [modelKey, rawModel] of Object.entries(options.models)) {
-        const opt = parseModelOptions(rawModel);
-        if (opt) {
-          store.modelConfigs.set(modelKey, opt);
         }
       }
     }

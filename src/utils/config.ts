@@ -6,9 +6,9 @@ import type { Location } from "@opencode/plugin";
 
 export function configPaths(
   location?: Pick<Location.Info, "directory" | "project">,
-): string[] {
+) {
   const names = ["opencode.json", "opencode.jsonc"];
-  const directories: string[] = [];
+  const directories = [];
   if (location?.project?.directory && location?.directory) {
     const root = resolve(location.project.directory);
     let current = resolve(location.directory);

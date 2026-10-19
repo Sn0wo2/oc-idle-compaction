@@ -4,7 +4,6 @@ import {
   DEFAULT_MIN_TOKENS,
   loadConfig,
   parseNumber,
-  type ModelRef,
 } from "./config/load.ts";
 
 export default Plugin.define({
@@ -35,16 +34,9 @@ export default Plugin.define({
       async function compact(sessionID: string) {
         timers.delete(sessionID);
         const currentTokens = context.get(sessionID) ?? 0;
-        let session:
-          { id?: string; parentID?: string; model?: ModelRef } | undefined;
-        try {
-          session = await ctx.session.get({ sessionID });
-        } catch (error) {
-          console.error("oc-idle-compaction:", error);
-          return;
-        }
+        const session = await getSession(sessionID);
+        if (session === null) return;
 
-        // Subagent sessions are never resumed directly, so refreshing their cache is wasted spend.
         if (session?.parentID) return;
 
         const config = store.resolve(session?.model);
@@ -54,19 +46,22 @@ export default Plugin.define({
         await ctx.session.compact({ sessionID });
       }
 
+      async function getSession(sessionID: string) {
+        try {
+          return await ctx.session.get({ sessionID });
+        } catch (error) {
+          console.error("oc-idle-compaction:", error);
+          return null;
+        }
+      }
+
       async function schedule(sessionID: string) {
         cancel(sessionID);
         const token = ++scheduleSeq;
         scheduleTokens.set(sessionID, token);
 
-        let session:
-          { id?: string; parentID?: string; model?: ModelRef } | undefined;
-        try {
-          session = await ctx.session.get({ sessionID });
-        } catch (error) {
-          console.error("oc-idle-compaction:", error);
-          return;
-        }
+        const session = await getSession(sessionID);
+        if (session === null) return;
 
         if (scheduleTokens.get(sessionID) !== token) return;
         scheduleTokens.delete(sessionID);
@@ -77,8 +72,7 @@ export default Plugin.define({
         const config = store.resolve(session?.model);
         if (!config.enabled) return;
 
-        const tokens = context.get(sessionID) ?? 0;
-        if (tokens < config.minTokens) return;
+        if ((context.get(sessionID) ?? 0) < config.minTokens) return;
 
         timers.set(
           sessionID,
