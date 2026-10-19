@@ -2,17 +2,17 @@ import { isPlainObject } from "es-toolkit/predicate";
 import type { Location, PluginOptions } from "@opencode/plugin";
 import { configPaths, parseConfig } from "../utils/config.ts";
 
-export const DEFAULT_IDLE_MINUTES = 54;
+export const DEFAULT_IDLE_SECONDS = 3_240;
 export const DEFAULT_MIN_TOKENS = 200_000;
 
 export type IdleCompactionOptions = {
-  idleMinutes?: number;
+  idleSeconds?: number;
   minTokens?: number;
   enabled?: boolean;
 };
 
 export type ResolvedIdleCompactionConfig = {
-  idleMinutes: number;
+  idleSeconds: number;
   minTokens: number;
   enabled: boolean;
 };
@@ -46,12 +46,12 @@ export function parseModelOptions(
     result.enabled = raw.enabled;
   }
 
-  const rawIdle = raw.idleMinutes ?? raw.idle_minutes ?? raw.idle;
+  const rawIdle = raw.idleSeconds ?? raw.idle_seconds;
   if (rawIdle !== undefined) {
-    result.idleMinutes = parseNumber(
-      "idleMinutes",
+    result.idleSeconds = parseNumber(
+      "idleSeconds",
       rawIdle,
-      DEFAULT_IDLE_MINUTES,
+      DEFAULT_IDLE_SECONDS,
     );
   }
 
@@ -73,8 +73,8 @@ export function extractIdleOptions(
     return parseModelOptions(raw.idle_compaction);
   }
   if (
-    raw.idleMinutes !== undefined ||
-    raw.idle_minutes !== undefined ||
+    raw.idleSeconds !== undefined ||
+    raw.idle_seconds !== undefined ||
     raw.minTokens !== undefined ||
     raw.min_tokens !== undefined ||
     raw.enabled !== undefined
@@ -122,10 +122,10 @@ export class ConfigStore {
     return {
       enabled:
         modelOpt?.enabled ?? providerOpt?.enabled ?? this.globalConfig.enabled,
-      idleMinutes:
-        modelOpt?.idleMinutes ??
-        providerOpt?.idleMinutes ??
-        this.globalConfig.idleMinutes,
+      idleSeconds:
+        modelOpt?.idleSeconds ??
+        providerOpt?.idleSeconds ??
+        this.globalConfig.idleSeconds,
       minTokens:
         modelOpt?.minTokens ??
         providerOpt?.minTokens ??
@@ -139,10 +139,10 @@ export async function loadConfig(
   options?: PluginOptions,
 ) {
   const store = new ConfigStore({
-    idleMinutes: parseNumber(
-      "idleMinutes",
-      options?.idleMinutes,
-      DEFAULT_IDLE_MINUTES,
+    idleSeconds: parseNumber(
+      "idleSeconds",
+      options?.idleSeconds,
+      DEFAULT_IDLE_SECONDS,
     ),
     minTokens: parseNumber("minTokens", options?.minTokens, DEFAULT_MIN_TOKENS),
     enabled: typeof options?.enabled === "boolean" ? options.enabled : true,

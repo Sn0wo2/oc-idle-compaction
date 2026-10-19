@@ -1,6 +1,6 @@
 import { Plugin } from "@opencode/plugin";
 import {
-  DEFAULT_IDLE_MINUTES,
+  DEFAULT_IDLE_SECONDS,
   DEFAULT_MIN_TOKENS,
   loadConfig,
   parseNumber,
@@ -10,7 +10,7 @@ export default Plugin.define({
   id: "oc-idle-compaction",
   setup(ctx) {
     // Validate global options synchronously so invalid options are rejected immediately
-    parseNumber("idleMinutes", ctx.options.idleMinutes, DEFAULT_IDLE_MINUTES);
+    parseNumber("idleSeconds", ctx.options.idleSeconds, DEFAULT_IDLE_SECONDS);
     parseNumber("minTokens", ctx.options.minTokens, DEFAULT_MIN_TOKENS);
 
     return (async () => {
@@ -80,7 +80,7 @@ export default Plugin.define({
             compact(sessionID).catch((error) =>
               console.error("oc-idle-compaction:", error),
             );
-          }, config.idleMinutes * 60_000),
+          }, config.idleSeconds * 1_000),
         );
       }
 

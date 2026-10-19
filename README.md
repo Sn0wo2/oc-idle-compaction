@@ -17,7 +17,7 @@ Add the package to your OpenCode2 `opencode.json` / `opencode.jsonc`:
     {
       "package": "github:Sn0wo2/oc-idle-compaction",
       "options": {
-        "idleMinutes": 54,
+        "idleSeconds": 3240,
         "minTokens": 200000,
       },
     },
@@ -38,13 +38,13 @@ Configure `idleCompaction` directly under `providers` in `opencode.json` / `open
     "your-provider": {
       // Optional: provider-level default
       "idleCompaction": {
-        "idleMinutes": 20,
+        "idleSeconds": 1200,
       },
       "models": {
         "your-model": {
           // Model-level override
           "idleCompaction": {
-            "idleMinutes": 10,
+            "idleSeconds": 600,
             "minTokens": 100000,
           },
         },

@@ -8,7 +8,7 @@ import { loadConfig } from "../src/config/load.ts";
 
 type Event = { type: string; data: Record<string, unknown> };
 
-const IDLE_MINUTES = 0.0005; // 30ms
+const IDLE_SECONDS = 0.03;
 const IDLE_WAIT = 60;
 const previousConfigDir = process.env.OPENCODE_CONFIG_DIR;
 const isolatedConfigDir = await mkdtemp(join(tmpdir(), "oc-idle-compaction-"));
@@ -47,7 +47,7 @@ async function setup(
   let signal: AbortSignal | undefined;
   const compactions: string[] = [];
   const cleanup = await idleCompaction.setup({
-    options: { idleMinutes: IDLE_MINUTES, ...input.options },
+    options: { idleSeconds: IDLE_SECONDS, ...input.options },
     location: config?.location ?? input.location,
     event: {
       subscribe: (options: { signal: AbortSignal }) => {
@@ -211,8 +211,8 @@ test("stops listening and clears timers on cleanup", async () => {
 });
 
 test.each([
-  ["idleMinutes", -1],
-  ["idleMinutes", "54"],
+  ["idleSeconds", -1],
+  ["idleSeconds", "54"],
   ["minTokens", Number.NaN],
   ["minTokens", null],
 ])("rejects invalid %s option %p", (name, value) => {
@@ -223,17 +223,17 @@ test.each([
   ).toThrow(`oc-idle-compaction ${name} option must be a non-negative number`);
 });
 
-test("supports per-model custom idleMinutes", async () => {
+test("supports per-model custom idleSeconds", async () => {
   const harness = await setup({
     options: {
-      idleMinutes: 0.001, // 60ms default
+      idleSeconds: 0.06, // 60ms default
     },
     config: {
       providers: {
         "test-prov": {
           models: {
             "fast-model": {
-              idleCompaction: { idleMinutes: 0.0003 },
+              idleCompaction: { idleSeconds: 0.018 },
             },
           },
         },
@@ -361,10 +361,10 @@ test("loadConfig resolves model, provider and global options correctly", async (
   const config = await optionAConfig({
     providers: {
       openai: {
-        idleCompaction: { idleMinutes: 40 },
+        idleCompaction: { idleSeconds: 2400 },
         models: {
           "gpt-4o": {
-            idleCompaction: { idleMinutes: 20, minTokens: 80_000 },
+            idleCompaction: { idleSeconds: 1200, minTokens: 80_000 },
           },
         },
       },
@@ -376,7 +376,7 @@ test("loadConfig resolves model, provider and global options correctly", async (
     },
   });
   const store = await loadConfig(config.location, {
-    idleMinutes: 50,
+    idleSeconds: 3000,
     minTokens: 150_000,
   });
 
@@ -387,7 +387,7 @@ test("loadConfig resolves model, provider and global options correctly", async (
   });
   expect(globalResolved).toEqual({
     enabled: true,
-    idleMinutes: 50,
+    idleSeconds: 3000,
     minTokens: 150_000,
   });
 
@@ -398,7 +398,7 @@ test("loadConfig resolves model, provider and global options correctly", async (
   });
   expect(providerResolved).toEqual({
     enabled: true,
-    idleMinutes: 40,
+    idleSeconds: 2400,
     minTokens: 150_000,
   });
 
@@ -406,7 +406,7 @@ test("loadConfig resolves model, provider and global options correctly", async (
   const modelResolved = store.resolve({ providerID: "openai", id: "gpt-4o" });
   expect(modelResolved).toEqual({
     enabled: true,
-    idleMinutes: 20,
+    idleSeconds: 1200,
     minTokens: 80_000,
   });
 
