@@ -1,202 +1,167 @@
-import { isPlainObject } from "es-toolkit/predicate";
-import type { Location, PluginOptions } from "@opencode/plugin";
-import { configPaths, parseConfig } from "../utils/config.ts";
+import type { Location, PluginOptions } from "@opencode/plugin"
+import { isPlainObject } from "es-toolkit/predicate"
+import { configPaths, parseConfig } from "../utils/config.ts"
 
-export const DEFAULT_IDLE_SECONDS = 3_240;
-export const DEFAULT_MIN_TOKENS = 200_000;
+export const DEFAULT_IDLE_SECONDS = 3240
+export const DEFAULT_MIN_TOKENS = 200_000
 
 export type IdleCompactionOptions = {
-  idleSeconds?: number;
-  minTokens?: number;
-  enabled?: boolean;
-};
+  idleSeconds?: number
+  minTokens?: number
+  enabled?: boolean
+}
 
 export type ResolvedIdleCompactionConfig = {
-  idleSeconds: number;
-  minTokens: number;
-  enabled: boolean;
-};
+  idleSeconds: number
+  minTokens: number
+  enabled: boolean
+}
 
 export type ModelRef = {
-  id?: string;
-  providerID?: string;
-  variant?: string;
-};
+  id?: string
+  providerID?: string
+  variant?: string
+}
 
 export function parseNumber(name: string, value: unknown, fallback: number) {
-  if (value === undefined) return fallback;
+  if (value === undefined) return fallback
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
-    throw new Error(
-      `oc-idle-compaction ${name} option must be a non-negative number`,
-    );
+    throw new Error(`oc-idle-compaction ${name} option must be a non-negative number`)
   }
-  return value;
+  return value
 }
 
-export function parseModelOptions(
-  raw: unknown,
-): IdleCompactionOptions | undefined {
-  if (raw === false) return { enabled: false };
-  if (raw === true) return { enabled: true };
-  if (!isPlainObject(raw)) return undefined;
+export function parseModelOptions(raw: unknown): IdleCompactionOptions | undefined {
+  if (raw === false) return { enabled: false }
+  if (raw === true) return { enabled: true }
+  if (!isPlainObject(raw)) return undefined
 
-  const result: IdleCompactionOptions = {};
+  const result: IdleCompactionOptions = {}
 
-  if (typeof raw.enabled === "boolean") {
-    result.enabled = raw.enabled;
+  if (typeof raw["enabled"] === "boolean") {
+    result.enabled = raw["enabled"]
   }
 
-  const rawIdle = raw.idleSeconds ?? raw.idle_seconds;
+  const rawIdle = raw["idleSeconds"] ?? raw["idle_seconds"]
   if (rawIdle !== undefined) {
-    result.idleSeconds = parseNumber(
-      "idleSeconds",
-      rawIdle,
-      DEFAULT_IDLE_SECONDS,
-    );
+    result.idleSeconds = parseNumber("idleSeconds", rawIdle, DEFAULT_IDLE_SECONDS)
   }
 
-  const rawTokens = raw.minTokens ?? raw.min_tokens;
+  const rawTokens = raw["minTokens"] ?? raw["min_tokens"]
   if (rawTokens !== undefined) {
-    result.minTokens = parseNumber("minTokens", rawTokens, DEFAULT_MIN_TOKENS);
+    result.minTokens = parseNumber("minTokens", rawTokens, DEFAULT_MIN_TOKENS)
   }
 
-  return result;
+  return result
 }
 
-export function extractIdleOptions(
-  raw: Record<string, unknown>,
-): IdleCompactionOptions | undefined {
-  if (raw.idleCompaction !== undefined) {
-    return parseModelOptions(raw.idleCompaction);
+export function extractIdleOptions(raw: Record<string, unknown>): IdleCompactionOptions | undefined {
+  if (raw["idleCompaction"] !== undefined) {
+    return parseModelOptions(raw["idleCompaction"])
   }
-  if (raw.idle_compaction !== undefined) {
-    return parseModelOptions(raw.idle_compaction);
+  if (raw["idle_compaction"] !== undefined) {
+    return parseModelOptions(raw["idle_compaction"])
   }
   if (
-    raw.idleSeconds !== undefined ||
-    raw.idle_seconds !== undefined ||
-    raw.minTokens !== undefined ||
-    raw.min_tokens !== undefined ||
-    raw.enabled !== undefined
+    raw["idleSeconds"] !== undefined ||
+    raw["idle_seconds"] !== undefined ||
+    raw["minTokens"] !== undefined ||
+    raw["min_tokens"] !== undefined ||
+    raw["enabled"] !== undefined
   ) {
-    return parseModelOptions(raw);
+    return parseModelOptions(raw)
   }
-  return undefined;
+  return undefined
 }
 
 export class ConfigStore {
-  readonly globalConfig: ResolvedIdleCompactionConfig;
-  readonly modelConfigs = new Map<string, IdleCompactionOptions>();
-  readonly providerConfigs = new Map<string, IdleCompactionOptions>();
+  readonly globalConfig: ResolvedIdleCompactionConfig
+  readonly modelConfigs = new Map<string, IdleCompactionOptions>()
+  readonly providerConfigs = new Map<string, IdleCompactionOptions>()
 
   constructor(globalConfig: ResolvedIdleCompactionConfig) {
-    this.globalConfig = globalConfig;
+    this.globalConfig = globalConfig
   }
 
   resolve(model?: ModelRef) {
-    if (!model) return this.globalConfig;
+    if (!model) return this.globalConfig
 
-    const { providerID, id: modelID, variant } = model;
+    const { providerID, id: modelID, variant } = model
 
-    let modelOpt: IdleCompactionOptions | undefined;
+    let modelOpt: IdleCompactionOptions | undefined
 
     // Check with variant first
     if (providerID && modelID && variant) {
       modelOpt =
-        this.modelConfigs.get(`${providerID}/${modelID}:${variant}`) ??
-        this.modelConfigs.get(`${modelID}:${variant}`);
+        this.modelConfigs.get(`${providerID}/${modelID}:${variant}`) ?? this.modelConfigs.get(`${modelID}:${variant}`)
     }
 
     // Check without variant
     if (!modelOpt && providerID && modelID) {
-      modelOpt = this.modelConfigs.get(`${providerID}/${modelID}`);
+      modelOpt = this.modelConfigs.get(`${providerID}/${modelID}`)
     }
     if (!modelOpt && modelID) {
-      modelOpt = this.modelConfigs.get(modelID);
+      modelOpt = this.modelConfigs.get(modelID)
     }
 
-    const providerOpt = providerID
-      ? this.providerConfigs.get(providerID)
-      : undefined;
+    const providerOpt = providerID ? this.providerConfigs.get(providerID) : undefined
 
     return {
-      enabled:
-        modelOpt?.enabled ?? providerOpt?.enabled ?? this.globalConfig.enabled,
-      idleSeconds:
-        modelOpt?.idleSeconds ??
-        providerOpt?.idleSeconds ??
-        this.globalConfig.idleSeconds,
-      minTokens:
-        modelOpt?.minTokens ??
-        providerOpt?.minTokens ??
-        this.globalConfig.minTokens,
-    };
+      enabled: modelOpt?.enabled ?? providerOpt?.enabled ?? this.globalConfig.enabled,
+      idleSeconds: modelOpt?.idleSeconds ?? providerOpt?.idleSeconds ?? this.globalConfig.idleSeconds,
+      minTokens: modelOpt?.minTokens ?? providerOpt?.minTokens ?? this.globalConfig.minTokens,
+    }
   }
 }
 
-export async function loadConfig(
-  location?: Location.Info,
-  options?: PluginOptions,
-) {
+export async function loadConfig(location?: Location.Info, options?: PluginOptions) {
   const store = new ConfigStore({
-    idleSeconds: parseNumber(
-      "idleSeconds",
-      options?.idleSeconds,
-      DEFAULT_IDLE_SECONDS,
-    ),
-    minTokens: parseNumber("minTokens", options?.minTokens, DEFAULT_MIN_TOKENS),
-    enabled: typeof options?.enabled === "boolean" ? options.enabled : true,
-  });
+    idleSeconds: parseNumber("idleSeconds", options?.["idleSeconds"], DEFAULT_IDLE_SECONDS),
+    minTokens: parseNumber("minTokens", options?.["minTokens"], DEFAULT_MIN_TOKENS),
+    enabled: typeof options?.["enabled"] === "boolean" ? options["enabled"] : true,
+  })
 
   for (const document of await Promise.all(
     configPaths(location).map(async (path) => {
       const text = await Bun.file(path)
         .text()
-        .catch(() => "");
-      if (!text) return undefined;
+        .catch(() => "")
+      if (!text) return undefined
       try {
-        return parseConfig(text, path);
+        return parseConfig(text, path)
       } catch (error) {
-        console.warn(
-          `[oc-idle-compaction] ignoring invalid config at ${path}`,
-          error,
-        );
-        return undefined;
+        console.warn(`[oc-idle-compaction] ignoring invalid config at ${path}`, error)
+        return undefined
       }
     }),
   )) {
-    if (!document || !isPlainObject(document.providers)) continue;
-    for (const [providerID, rawProvider] of Object.entries(
-      document.providers,
-    )) {
-      if (!isPlainObject(rawProvider)) continue;
+    if (!(document && isPlainObject(document["providers"]))) continue
+    for (const [providerID, rawProvider] of Object.entries(document["providers"])) {
+      if (!isPlainObject(rawProvider)) continue
 
-      const providerOpt = extractIdleOptions(rawProvider);
+      const providerOpt = extractIdleOptions(rawProvider)
       if (providerOpt) {
-        store.providerConfigs.set(providerID, providerOpt);
+        store.providerConfigs.set(providerID, providerOpt)
       }
 
-      if (!isPlainObject(rawProvider.models)) continue;
+      if (!isPlainObject(rawProvider["models"])) continue
 
-      for (const [configKey, rawModel] of Object.entries(rawProvider.models)) {
-        if (!isPlainObject(rawModel)) continue;
-        const modelOpt = extractIdleOptions(rawModel);
-        if (!modelOpt) continue;
+      for (const [configKey, rawModel] of Object.entries(rawProvider["models"])) {
+        if (!isPlainObject(rawModel)) continue
+        const modelOpt = extractIdleOptions(rawModel)
+        if (!modelOpt) continue
 
-        store.modelConfigs.set(`${providerID}/${configKey}`, modelOpt);
-        store.modelConfigs.set(configKey, modelOpt);
+        store.modelConfigs.set(`${providerID}/${configKey}`, modelOpt)
+        store.modelConfigs.set(configKey, modelOpt)
 
-        const modelID =
-          typeof rawModel.modelID === "string"
-            ? rawModel.modelID.trim()
-            : undefined;
+        const modelID = typeof rawModel["modelID"] === "string" ? rawModel["modelID"].trim() : undefined
         if (modelID) {
-          store.modelConfigs.set(`${providerID}/${modelID}`, modelOpt);
-          store.modelConfigs.set(modelID, modelOpt);
+          store.modelConfigs.set(`${providerID}/${modelID}`, modelOpt)
+          store.modelConfigs.set(modelID, modelOpt)
         }
       }
     }
   }
 
-  return store;
+  return store
 }

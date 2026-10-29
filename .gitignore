@@ -140,3 +140,31 @@ Thumbs.db
 
 # Package archives
 *.tgz
+
+.env.*
+!.env.example
+.stylelintcache
+.node_repl_history
+.yarn-integrity
+.parcel-cache
+out
+.output
+.temp
+.svelte-kit/
+**/.vitepress/dist
+**/.vitepress/cache
+.docusaurus
+.pnpm-store
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+.vite/
+.astro/
+.turbo
+/build/

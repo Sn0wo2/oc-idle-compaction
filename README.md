@@ -18,10 +18,10 @@ Add the package to your OpenCode2 `opencode.json` / `opencode.jsonc`:
       "package": "github:Sn0wo2/oc-idle-compaction",
       "options": {
         "idleSeconds": 3240,
-        "minTokens": 200000,
-      },
-    },
-  ],
+        "minTokens": 200000
+      }
+    }
+  ]
 }
 ```
 
@@ -38,22 +38,22 @@ Configure `idleCompaction` directly under `providers` in `opencode.json` / `open
     "your-provider": {
       // Optional: provider-level default
       "idleCompaction": {
-        "idleSeconds": 1200,
+        "idleSeconds": 1200
       },
       "models": {
         "your-model": {
           // Model-level override
           "idleCompaction": {
             "idleSeconds": 600,
-            "minTokens": 100000,
-          },
+            "minTokens": 100000
+          }
         },
         "expensive-model": {
           // Disable idle compaction for specific models
-          "idleCompaction": false,
-        },
-      },
-    },
-  },
+          "idleCompaction": false
+        }
+      }
+    }
+  }
 }
 ```

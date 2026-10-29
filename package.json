@@ -2,6 +2,7 @@
   "name": "oc-idle-compaction",
   "description": "OpenCode2 plugin that compacts large idle sessions before their prompt cache expires.",
   "type": "module",
+  "packageManager": "bun@1.4.4",
   "files": [
     "src"
   ],
@@ -9,10 +10,12 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "lint": "biome check --error-on-warnings .",
+    "lint:fix": "biome check --write --error-on-warnings .",
     "check": "tsc --noEmit",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "test": "bun test"
+    "test": "bun test",
+    "security": "bun audit --registry=https://registry.npmjs.org",
+    "ci": "bun run lint && bun run check && bun run test && bun run security"
   },
   "keywords": [
     "opencode",
@@ -37,7 +40,7 @@
   },
   "devDependencies": {
     "@types/bun": "^1.4.3",
-    "prettier": "^3.9.10",
+    "@biomejs/biome": "^2.6.4",
     "typescript": "^7.0.2"
   }
 }
