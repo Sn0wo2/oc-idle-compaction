@@ -1,7 +1,12 @@
 {
   "name": "oc-idle-compaction",
+  "version": "0.1.0",
   "description": "OpenCode2 plugin that compacts large idle sessions before their prompt cache expires.",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sn0wo2/oc-idle-compaction.git"
+  },
   "packageManager": "bun@1.4.4",
   "files": [
     "src"
