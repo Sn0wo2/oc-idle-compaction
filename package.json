@@ -38,14 +38,18 @@
     "vimtor"
   ],
   "license": "Apache-2.0",
+  "overrides": {
+    "glob": "^14.0.3",
+    "minimatch": "^11.0.4"
+  },
   "dependencies": {
-    "@opencode/plugin": "^2.0.32",
-    "es-toolkit": "^1.52.0",
+    "@opencode/plugin": "^2.2.5",
+    "es-toolkit": "^1.53.1",
     "jsonc-parser": "^3.3.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.6.4",
-    "@types/bun": "^1.4.3",
+    "@biomejs/biome": "^2.6.5",
+    "@types/bun": "^1.4.4",
     "typescript": "^7.0.2"
   }
 }

@@ -6,8 +6,6 @@ import type { Location, Plugin } from "@opencode/plugin"
 import { loadConfig } from "../src/config/load.ts"
 import idleCompaction from "../src/index.ts"
 
-type Event = { type: string; data: Record<string, unknown> }
-
 const IDLE_SECONDS = 0.03
 const IDLE_WAIT = 60
 const previousConfigDir = process.env["OPENCODE_CONFIG_DIR"]
@@ -39,7 +37,7 @@ async function setup(
   } = {},
 ) {
   const config = input.config ? await optionAConfig(input.config) : undefined
-  const queue: Event[] = []
+  const queue: { type: string; data: Record<string, unknown> }[] = []
   let wake: (() => void) | undefined
   let signal: AbortSignal | undefined
   const compactions: string[] = []
@@ -371,13 +369,14 @@ test("loadConfig resolves model, provider and global options correctly", async (
       },
     },
   })
-  const store = await loadConfig(config.location, {
+  const resolve = await loadConfig(config.location, {
     idleSeconds: 3000,
     minTokens: 150_000,
+    enabled: true,
   })
 
   // Global fallback
-  const globalResolved = store.resolve({
+  const globalResolved = resolve({
     providerID: "unknown",
     id: "unknown",
   })
@@ -388,7 +387,7 @@ test("loadConfig resolves model, provider and global options correctly", async (
   })
 
   // Provider-level fallback
-  const providerResolved = store.resolve({
+  const providerResolved = resolve({
     providerID: "openai",
     id: "gpt-3.5-turbo",
   })
@@ -399,7 +398,7 @@ test("loadConfig resolves model, provider and global options correctly", async (
   })
 
   // Model-level override
-  const modelResolved = store.resolve({ providerID: "openai", id: "gpt-4o" })
+  const modelResolved = resolve({ providerID: "openai", id: "gpt-4o" })
   expect(modelResolved).toEqual({
     enabled: true,
     idleSeconds: 1200,
@@ -407,7 +406,7 @@ test("loadConfig resolves model, provider and global options correctly", async (
   })
 
   // Disabled model
-  const disabledResolved = store.resolve({
+  const disabledResolved = resolve({
     providerID: "anthropic",
     id: "claude-opus",
   })

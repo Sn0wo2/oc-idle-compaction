@@ -1,40 +1,38 @@
 import { Plugin } from "@opencode/plugin"
-import { DEFAULT_IDLE_SECONDS, DEFAULT_MIN_TOKENS, loadConfig, parseNumber } from "./config/load.ts"
+import { DEFAULT_IDLE_SECONDS, DEFAULT_MIN_TOKENS, loadConfig } from "./config/load.ts"
+import { parseNumber } from "./utils/config.ts"
 
 export default Plugin.define({
   id: "oc-idle-compaction",
   setup(ctx) {
-    // Validate global options synchronously so invalid options are rejected immediately
-    parseNumber("idleSeconds", ctx.options["idleSeconds"], DEFAULT_IDLE_SECONDS)
-    parseNumber("minTokens", ctx.options["minTokens"], DEFAULT_MIN_TOKENS)
+    // Resolve global options synchronously so invalid options are rejected immediately.
+    const globalConfig = {
+      idleSeconds: parseNumber("oc-idle-compaction idleSeconds", ctx.options["idleSeconds"], DEFAULT_IDLE_SECONDS),
+      minTokens: parseNumber("oc-idle-compaction minTokens", ctx.options["minTokens"], DEFAULT_MIN_TOKENS),
+      enabled: typeof ctx.options["enabled"] === "boolean" ? ctx.options["enabled"] : true,
+    }
 
     return (async () => {
-      const store = await loadConfig(ctx.location, ctx.options)
+      const resolve = await loadConfig(ctx.location, globalConfig)
 
       const context = new Map<string, number>()
       const timers = new Map<string, ReturnType<typeof setTimeout>>()
       const compacting = new Set<string>()
-      let scheduleSeq = 0
-      const scheduleTokens = new Map<string, number>()
+      const scheduleTokens = new Map<string, object>()
 
       function cancel(sessionID: string) {
+        clearTimeout(timers.get(sessionID))
+        timers.delete(sessionID)
         scheduleTokens.delete(sessionID)
-        const timer = timers.get(sessionID)
-        if (timer) {
-          clearTimeout(timer)
-          timers.delete(sessionID)
-        }
       }
 
       async function compact(sessionID: string) {
         timers.delete(sessionID)
         const currentTokens = context.get(sessionID) ?? 0
         const session = await getSession(sessionID)
-        if (session === null) return
+        if (session === null || session.parentID) return
 
-        if (session?.parentID) return
-
-        const config = store.resolve(session?.model)
+        const config = resolve(session.model)
         if (!config.enabled || currentTokens < config.minTokens) return
 
         context.delete(sessionID)
@@ -52,22 +50,18 @@ export default Plugin.define({
 
       async function schedule(sessionID: string) {
         cancel(sessionID)
-        const token = ++scheduleSeq
+        const token = {}
         scheduleTokens.set(sessionID, token)
 
         const session = await getSession(sessionID)
-        if (session === null) return
-
-        if (scheduleTokens.get(sessionID) !== token) return
+        if (session === null || scheduleTokens.get(sessionID) !== token) return
         scheduleTokens.delete(sessionID)
 
         // Subagent sessions are never resumed directly, so refreshing their cache is wasted spend.
-        if (session?.parentID) return
+        if (session.parentID) return
 
-        const config = store.resolve(session?.model)
-        if (!config.enabled) return
-
-        if ((context.get(sessionID) ?? 0) < config.minTokens) return
+        const config = resolve(session.model)
+        if (!config.enabled || (context.get(sessionID) ?? 0) < config.minTokens) return
 
         timers.set(
           sessionID,

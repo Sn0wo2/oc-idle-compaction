@@ -1,8 +1,6 @@
 import { homedir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import type { Location } from "@opencode/plugin"
-import { isPlainObject } from "es-toolkit/predicate"
-import { type ParseError, parse } from "jsonc-parser"
 
 export function configPaths(location?: Pick<Location.Info, "directory" | "project">) {
   const names = ["opencode.json", "opencode.jsonc"]
@@ -31,11 +29,10 @@ export function configPaths(location?: Pick<Location.Info, "directory" | "projec
   ]
 }
 
-export function parseConfig(text: string, source: string): Record<string, unknown> {
-  const errors: ParseError[] = []
-  const config: unknown = parse(text, errors, { allowTrailingComma: true })
-  const first = errors[0]
-  if (first) throw new SyntaxError(`${source}: JSONC syntax error near offset ${first.offset} (code ${first.error})`)
-  if (!isPlainObject(config)) throw new TypeError(`${source} must be an object`)
-  return config
+export function parseNumber(name: string, value: unknown, fallback: number) {
+  if (value === undefined) return fallback
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw new Error(`${name} option must be a non-negative number`)
+  }
+  return value
 }

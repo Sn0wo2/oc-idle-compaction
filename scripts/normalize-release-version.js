@@ -1,12 +1,11 @@
 import { appendFileSync } from "node:fs"
+import { main, requireEnv } from "./lib.js"
 
 const semverPattern =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
 
-function main() {
-  for (const name of ["GITHUB_OUTPUT", "GITHUB_ENV"]) {
-    if (!process.env[name]) throw new Error(`${name} is not set`)
-  }
+await main(() => {
+  requireEnv("GITHUB_OUTPUT", "GITHUB_ENV")
 
   const raw = process.argv[2] ?? process.env.GITHUB_REF_NAME
   if (!raw) throw new Error("Release version is not set")
@@ -19,11 +18,4 @@ function main() {
   appendFileSync(process.env.GITHUB_ENV, `VERSION=${version}\n`)
   appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\ndist-tag=${distTag}\n`)
   console.log(`Release version ${version} (dist-tag ${distTag})`)
-}
-
-try {
-  main()
-} catch (error) {
-  console.error(error.message)
-  process.exitCode = 1
-}
+})
